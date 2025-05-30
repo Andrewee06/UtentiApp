@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, FlatList, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, Text, View, FlatList, ActivityIndicator, Image, RefreshControl } from 'react-native';
 
 const API_URL = 'https://683953156561b8d882afe348.mockapi.io/utenti';
 
 export default function App() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -13,7 +14,7 @@ export default function App() {
 
     const fetchData = async () => {
         try {
-            setLoading(true);
+            if (!refreshing) setLoading(true);
             const response = await fetch(API_URL);
             const json = await response.json();
             setData(json);
@@ -21,10 +22,16 @@ export default function App() {
             console.error(error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    if (loading) {
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchData();
+    };
+
+    if (loading && !refreshing) {
         return (
             <View style={styles.center}>
                 <ActivityIndicator size="large" color="#0000ff" />
@@ -34,7 +41,16 @@ export default function App() {
     }
 
     const renderItem = ({ item }) => {
-        const formattedDate = new Date(item.createdAt).toLocaleDateString();
+        let dateObj = null;
+
+        if (!item.createdAt) {
+            dateObj = null;
+        } else {
+            dateObj = new Date(item.createdAt);
+        }
+
+        const formattedDate = dateObj && !isNaN(dateObj) ? dateObj.toLocaleDateString() : 'Data non disponibile';
+
         return (
             <View style={styles.item}>
                 <Image source={{ uri: item.img }} style={styles.avatar} />
@@ -46,7 +62,6 @@ export default function App() {
         );
     };
 
-
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Lista utenti</Text>
@@ -55,6 +70,9 @@ export default function App() {
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 ListEmptyComponent={<Text>Nessun dato disponibile</Text>}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
             />
         </View>
     );
